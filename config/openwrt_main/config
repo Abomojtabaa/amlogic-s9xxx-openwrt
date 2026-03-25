@@ -1,57 +1,49 @@
-# --- إعدادات المعالج والجهاز (S905X2) ---
+# --- إعدادات الجهاز الأساسية ---
 CONFIG_TARGET_amlogic=y
 CONFIG_TARGET_amlogic_meson8b=y
 CONFIG_TARGET_DEVICE_amlogic_meson8b_default=y
 
-# --- إعدادات الشبكة و Ethtool (Gigabit & Full Duplex) ---
+# --- إعدادات الشبكة والسرعة الكاملة (Full Duplex) ---
 CONFIG_PACKAGE_kmod-mii=y
 CONFIG_PACKAGE_kmod-ethtool=y
 CONFIG_PACKAGE_ethtool=y
 CONFIG_PACKAGE_kmod-r8169=y
 CONFIG_PACKAGE_kmod-r8168=y
-CONFIG_PACKAGE_kmod-tg3=y
 CONFIG_PACKAGE_kmod-usb-net=y
 CONFIG_PACKAGE_kmod-usb-net-asix-ax88179=y
 CONFIG_PACKAGE_kmod-usb-net-rtl8152=y
 
-# --- تثبيت v2rayA والمحركات التابعة له ---
+# --- تطبيق v2rayA والمحركات الأساسية ---
 CONFIG_PACKAGE_luci-app-v2raya=y
 CONFIG_PACKAGE_v2raya=y
 CONFIG_PACKAGE_xray-core=y
-CONFIG_PACKAGE_v2ray-core=y
-CONFIG_PACKAGE_v2ray-geoip=y
-CONFIG_PACKAGE_v2ray-geosite=y
 
-# --- تقليل الضغط على SD Card (العمل في RAM) ---
+# --- تطبيقات Docker و AdGuard Home ---
+CONFIG_PACKAGE_luci-app-dockerman=y
+CONFIG_PACKAGE_docker-ce=y
+CONFIG_PACKAGE_luci-app-adguardhome=y
+
+# --- تقليل إجهاد الـ SD Card (العمل في الـ RAM) ---
 CONFIG_PACKAGE_kmod-zram=y
 CONFIG_PACKAGE_zram-tools=y
-CONFIG_PACKAGE_zram-swap=y
 CONFIG_PACKAGE_luci-app-ramfree=y
 
-# --- دعم منافذ USB والسرعة العالية ---
+# --- دعم USB 3.0 والسرعة العالية ---
 CONFIG_PACKAGE_kmod-usb3=y
 CONFIG_PACKAGE_kmod-usb-storage=y
 CONFIG_PACKAGE_kmod-usb-storage-uas=y
 
-# --- الواجهة الرسومية (ثيم Argon الحديث باللغة العربية) ---
+# --- الواجهة واللغة والأدوات ---
 CONFIG_PACKAGE_luci=y
 CONFIG_PACKAGE_luci-theme-argon=y
-CONFIG_PACKAGE_luci-app-argon-config=y
 CONFIG_PACKAGE_luci-i18n-base-ar=y
-CONFIG_PACKAGE_luci-i18n-argon-config-ar=y
 CONFIG_PACKAGE_luci-i18n-v2raya-ar=y
-
-# --- تطبيقات إضافية (Docker & AdGuard) ---
-CONFIG_PACKAGE_luci-app-adguardhome=y
-CONFIG_PACKAGE_luci-app-dockerman=y
-CONFIG_PACKAGE_docker-ce=y
-CONFIG_PACKAGE_luci-app-ttyd=y
-CONFIG_PACKAGE_luci-app-filebrowser=y
-
-# --- أدوات إدارة النظام والقرص ---
+CONFIG_PACKAGE_htop=y
+CONFIG_PACKAGE_nano=y
 CONFIG_PACKAGE_fdisk=y
 CONFIG_PACKAGE_lsblk=y
 CONFIG_PACKAGE_resize2fs=y
-CONFIG_PACKAGE_htop=y
-CONFIG_PACKAGE_nano=y
-CONFIG_PACKAGE_curl=y
+
+# --- تعريفات الواي فاي لجهاز Beelink ---
+CONFIG_PACKAGE_kmod-brcmfmac=y
+CONFIG_PACKAGE_brcmfmac-firmware-43455-sdio=y
