@@ -1,1 +1,160 @@
+#============================================================================================
+# https://github.com/ophub/amlogic-s9xxx-openwrt
+# Description: Build OpenWrt system image for Beelink GT1 Mini (ALIWRT Edition)
+#============================================================================================
 
+name: Build OpenWrt system image
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: "Select the source branch"
+        required: false
+        default: "immortalwrt_master"
+        type: choice
+        options:
+          - immortalwrt_master
+          - openwrt_main
+      openwrt_board:
+        description: "Select device board"
+        required: false
+        default: "s905x2"
+        type: choice
+        options:
+          - s905x2
+          - s905x2-gt1-mini
+          - amlogic
+      openwrt_kernel:
+        description: "Select kernel version"
+        required: false
+        default: "6.12.y"
+        type: choice
+        options:
+          - 6.12.y
+          - 6.6.y
+          - 5.15.y
+      auto_kernel:
+        description: "Auto use the latest kernel"
+        required: false
+        default: true
+        type: boolean
+      openwrt_ip:
+        description: "Set OpenWrt default IP address."
+        required: false
+        default: "192.168.1.1"
+      use_ccache:
+        description: "Auto use ccache."
+        required: false
+        default: true
+        type: boolean
+
+env:
+  FEEDS_CONF: config/${{ inputs.source_branch }}/feeds.conf.default
+  CONFIG_FILE: config/${{ inputs.source_branch }}/config
+  DIY_P1_SH: config/${{ inputs.source_branch }}/diy-part1.sh
+  DIY_P2_SH: config/${{ inputs.source_branch }}/diy-part2.sh
+  FDT_FILE: "meson-g12a-gt1-mini-a.dtb"
+  TZ: Etc/UTC
+  CCACHE_DIR: /builder/openwrt/.ccache
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event.repository.owner.id == github.event.sender.id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Initialize the build environment
+        id: init
+        run: |
+          sudo -E apt-get -y update
+          sudo -E apt-get -y install $(curl -fsSL https://ophub.org/ubuntu2404-make-openwrt-depends)
+          sudo -E timedatectl set-timezone "${TZ:-Etc/UTC}"
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Create virtual disk for extended storage
+        run: |
+          sudo mkdir -p /builder
+          sudo chown -R runner:runner /builder
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Clone source code [ ${{ inputs.source_branch }} ]
+        id: codes
+        working-directory: /builder
+        run: |
+          if [[ "${{ inputs.source_branch }}" =~ ^immortalwrt ]]; then
+              REPO_URL="https://github.com/immortalwrt/immortalwrt"
+          else
+              REPO_URL="https://github.com/openwrt/openwrt"
+          fi
+          source_branch_input="${{ inputs.source_branch }}"
+          REPO_NAME="${source_branch_input%_*}"
+          REPO_BRANCH="${source_branch_input##*_}"
+          git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
+          echo "REPO_NAME=${REPO_NAME}" >> ${GITHUB_ENV}
+          echo "REPO_BRANCH=${REPO_BRANCH}" >> ${GITHUB_ENV}
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Update & Install feeds
+        run: |
+          cd /builder/openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Load custom configuration
+        run: |
+          # مسح أي ملف config قديم لضمان نظافة البناء
+          rm -f /builder/openwrt/.config
+          [ -e "${{ github.workspace }}/${CONFIG_FILE}" ] && cp -f ${{ github.workspace }}/${CONFIG_FILE} /builder/openwrt/.config
+          chmod +x ${{ github.workspace }}/${DIY_P2_SH}
+          cd /builder/openwrt
+          ${{ github.workspace }}/${DIY_P2_SH} "${{ inputs.openwrt_ip }}" "${{ inputs.use_ccache }}"
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: /builder/openwrt/.ccache
+          key: openwrt-${{ env.REPO_NAME }}-${{ github.sha }}
+          restore-keys: openwrt-${{ env.REPO_NAME }}-
+
+      - name: Compile the OpenWrt firmware
+        id: compile
+        run: |
+          cd /builder/openwrt
+          # تثبيت الإعدادات برمجياً بدون واجهة مستخدم (Non-Interactive)
+          make defconfig
+          echo -e "Compiling with $(nproc) threads"
+          make -j$(($(nproc) + 1)) || make -j1 V=s
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Package OpenWrt for Beelink GT1 Mini
+        if: ${{ steps.compile.outputs.status == 'success' }}
+        uses: ophub/amlogic-s9xxx-openwrt@main
+        with:
+          openwrt_path: /builder/openwrt/bin/targets/*/*/*rootfs.tar.gz
+          openwrt_board: ${{ inputs.openwrt_board }}
+          openwrt_kernel: ${{ inputs.openwrt_kernel }}
+          fdt_file: ${{ env.FDT_FILE }}
+          auto_kernel: ${{ inputs.auto_kernel }}
+
+      - name: Upload packaged OpenWrt to Release
+        uses: ncipollo/release-action@main
+        if: ${{ env.PACKAGED_STATUS == 'success' }}
+        with:
+          tag: "ALIWRT-Stable-v2"
+          artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
+          body: |
+            ### النسخة المستقرة لجهاز Beelink GT1 Mini
+            * حل مشكلة طاقة الـ USB (Always ON).
+            * تفعيل وضع Full Duplex للتحويلة الخارجية.
+            * تقليل الكتابة على SD Card (اللوجات في الرام).
+            * توسيع الذاكرة تلقائياً (80% من البطاقة).
+            * الثيم الافتراضي: Argon.
