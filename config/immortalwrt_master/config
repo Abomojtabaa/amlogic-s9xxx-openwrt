@@ -1,28 +1,22 @@
-# دعم المعالج والجهاز
-CONFIG_TARGET_amlogic=y
-CONFIG_TARGET_amlogic_meson64=y
-CONFIG_TARGET_amlogic_meson64_DEVICE_amlogic_p212=y
+CONFIG_TARGET_armvirt=y
+CONFIG_TARGET_armvirt_64=y
+CONFIG_TARGET_armvirt_64_Default=y
+CONFIG_TARGET_KERNEL_PARTSIZE=128
+CONFIG_TARGET_ROOTFS_PARTSIZE=1024
+CONFIG_TARGET_ROOTFS_TARGZ=y
 
-# تعريفات USB Ethernet (لحل مشكلة WAN)
-CONFIG_PACKAGE_kmod-usb-net=y
-CONFIG_PACKAGE_kmod-usb-net-asix=y
+# تعريفات الـ USB والشبكة (Full Duplex Support)
 CONFIG_PACKAGE_kmod-usb-net-asix-ax88179=y
-CONFIG_PACKAGE_kmod-usb-net-rtl8150=y
 CONFIG_PACKAGE_kmod-usb-net-rtl8152=y
-CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
-
-# أدوات التحكم في الطاقة والمنفذ
+CONFIG_PACKAGE_kmod-usb3=y
 CONFIG_PACKAGE_usbutils=y
 CONFIG_PACKAGE_ethtool=y
 
-# إزالة v2rayA وأي تطبيقات ثقيلة (للاستقرار)
-# CONFIG_PACKAGE_luci-app-v2raya is not set
-# CONFIG_PACKAGE_v2raya is not set
+# تعريفات الواي فاي
+CONFIG_PACKAGE_kmod-brcmfmac=y
+CONFIG_PACKAGE_brcmfmac-firmware-43455-sdio=y
+CONFIG_PACKAGE_wpad-basic-mbedtls=y
 
-# واجهة التحكم LuCI واللغة العربية (اختياري)
-CONFIG_PACKAGE_luci=y
-CONFIG_PACKAGE_luci-i18n-base-ar=y
+# الثيم والواجهة
 CONFIG_PACKAGE_luci-theme-argon=y
-
-CONFIG_PACKAGE_fdisk=y
-CONFIG_PACKAGE_resize2fs=y
+CONFIG_PACKAGE_luci-app-argon-config=y
