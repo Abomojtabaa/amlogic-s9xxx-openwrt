@@ -1,55 +1,34 @@
 #!/bin/bash
-#========================================================================================================================
-# https://github.com/ophub/amlogic-s9xxx-openwrt
-# Description: Automatically Build OpenWrt
-# Function: DIY script (After updating feeds — modify the default IP, hostname, theme, add/remove packages, etc.)
-# Source code repository: https://github.com/immortalwrt/immortalwrt / Branch: master
-#========================================================================================================================
 
-# ------------------------------- Main source configuration -------------------------------
-#
-# Set the default LAN IP address
-default_ip="192.168.1.1"
-ip_regex="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-# Override default IP if a valid custom IP is provided as the first argument
-[[ -n "${1}" && "${1}" != "${default_ip}" && "${1}" =~ ${ip_regex} ]] && {
-    echo "Modify default IP address to: ${1}"
-    sed -i "/lan) ipad=\${ipaddr:-/s/\${ipaddr:-\"[^\"]*\"}/\${ipaddr:-\"${1}\"}/" package/base-files/*/bin/config_generate
-}
+# 1. ضبط الـ IP الافتراضي (يمكنك تغييره لـ 192.168.1.1 إذا أردت)
+sed -i "s/192.168.1.1/192.168.1.1/g" package/base-files/files/bin/config_generate
 
-# Set the default password for the 'root' user (change empty password to 'password')
+# 2. ضبط كلمة مرور الجذر الافتراضية إلى 'password'
 sed -i 's/root:::0:99999:7:::/root:$1$V4UetPzk$CYXluq4wUazHjmCDBCqXF.::0:99999:7:::/g' package/base-files/files/etc/shadow
 
-# Append source repository information to etc/openwrt_release
-sed -i "s|DISTRIB_REVISION='.*'|DISTRIB_REVISION='R$(date +%Y.%m.%d)'|g" package/base-files/files/etc/openwrt_release
-echo "DISTRIB_SOURCEREPO='github.com/immortalwrt/immortalwrt'" >>package/base-files/files/etc/openwrt_release
-echo "DISTRIB_SOURCECODE='immortalwrt'" >>package/base-files/files/etc/openwrt_release
-echo "DISTRIB_SOURCEBRANCH='master'" >>package/base-files/files/etc/openwrt_release
+# 3. شعار ALIWRT عند الدخول للنظام (Banner)
+echo "      ___    __    _________ _      _______  ______" > package/base-files/files/etc/banner
+echo "     /   |  / /   /  _/ | | /| /  / __ \/_  __/" >> package/base-files/files/etc/banner
+echo "    / /| | / /    / /   | |/ |/  / /_/ / / /   " >> package/base-files/files/etc/banner
+echo "   / ___ |/ /____/ /    |  /|   / _, _/ / /    " >> package/base-files/files/etc/banner
+echo "  /_/  |_/_____/___/    |__/|__/_/ |_| /_/     " >> package/base-files/files/etc/banner
+echo " -------------------------------------------------" >> package/base-files/files/etc/banner
+echo "   STABLE USB EDITION | BEELINK GT1 MINI (S905X2) " >> package/base-files/files/etc/banner
+echo " -------------------------------------------------" >> package/base-files/files/etc/banner
 
-# Configure ccache for build acceleration
-# Remove existing ccache settings
-sed -i '/CONFIG_DEVEL/d' .config
-sed -i '/CONFIG_CCACHE/d' .config
-# Apply new ccache configuration
-if [[ "${2}" == "true" ]]; then
-    echo "CONFIG_DEVEL=y" >>.config
-    echo "CONFIG_CCACHE=y" >>.config
-    echo 'CONFIG_CCACHE_DIR="$(TOPDIR)/.ccache"' >>.config
-else
-    echo '# CONFIG_DEVEL is not set' >>.config
-    echo "# CONFIG_CCACHE is not set" >>.config
-    echo 'CONFIG_CCACHE_DIR=""' >>.config
-fi
-#
-# ------------------------------- Main source configuration ends -------------------------------
+# 4. إصلاح مشكلة الـ Carrier (منع خمول الـ USB وتعطيل توفير الطاقة)
+# هذه الأوامر ستنفذ تلقائياً عند كل إقلاع للجهاز
+mkdir -p package/base-files/files/etc/uci-defaults
+cat <<EOF > package/base-files/files/etc/uci-defaults/99-usb-power-fix
+#!/bin/sh
+# تعطيل تعليق الطاقة التلقائي لمنافذ USB
+for i in /sys/bus/usb/devices/*/power/autosuspend; do echo -1 > "\$i"; done
+for i in /sys/bus/usb/devices/*/power/control; do echo on > "\$i"; done
+# تفعيل واجهة الشبكة بقوة
+ip link set eth1 up
+exit 0
+EOF
+chmod +x package/base-files/files/etc/uci-defaults/99-usb-power-fix
 
-# ------------------------------- Additional customizations -------------------------------
-#
-# Add luci-app-amlogic
-rm -rf package/luci-app-amlogic
-git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
-#
-# Apply patches
-# git apply ../config/patches/{0001*,0002*}.patch --directory=feeds/luci
-#
-# ------------------------------- Additional customizations ends -------------------------------
+# 5. الإبقاء على ملفات الـ DTB الخاصة بمعالج جهازك فقط لتقليل الحجم ومنع التداخل
+find target/linux/amlogic/dts/amlogic/ -type f ! -name "*g12a*" -delete
