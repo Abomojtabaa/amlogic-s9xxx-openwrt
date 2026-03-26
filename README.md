@@ -113,11 +113,6 @@ sudo apt-get install -y $(cat make-openwrt/scripts/ubuntu2404-make-openwrt-depen
 | -n        | BuilderName   | Set the signature of the OpenWrt system builder. Do not include spaces when setting signatures. Default: `none` |
 
 - `sudo ./remake` : Use default configuration, use the latest kernel package in the kernel library, and package all models of TV boxes.
-- `sudo ./remake -b s905x3 -k 6.1.10` : Recommended. Use default configuration for related kernel packaging.
-- `sudo ./remake -b s905x3 -k 6.1.y` : Package the relevant kernels using the default configuration; the kernel utilizes the latest version of the 6.1.y series.
-- `sudo ./remake -b s905x3_s905d -k 6.1.10_5.15.50` : Use the default configuration and package multiple kernels at the same time. Use `_` to connect multiple kernel parameters.
-- `sudo ./remake -b s905x3 -k 6.1.10 -s 1024` : Use the default configuration, specify a kernel, a model for packaging, and set the firmware size to 1024 MiB.
-- `sudo ./remake -b s905x3_s905d` : Use default configuration, package all kernels for multiple models of TV boxes, use `_` to connect multiple models.
 - `sudo ./remake -k 6.1.10_5.15.50` : Use the default configuration, specify multiple kernels, package all models of TV boxes, and connect kernel packages with `_`.
 - `sudo ./remake -k 6.1.10_5.15.50 -a true` : Use the default configuration, specify multiple kernels, package all models of TV boxes, and connect kernel packages with `_`. Automatically upgrade to the latest kernel of the same series.
 - `sudo ./remake -s 1024 -k 6.1.10` : Use the default configuration, set the firmware size to 1024 MiB, and specify the kernel as 6.1.10 to package all models of TV boxes.
