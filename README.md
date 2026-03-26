@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="https://github.com/user-attachments/assets/5fcf18e1-ed16-49d3-9004-5301ac8d4309" alt="OpenWrt" />
+    <img src="https://www.smartbox.am/webroot/myfiles/images/products/gt1mini/1a140420202d67f82419ee1e1036f15b.jpg" alt="OpenWrt" />
 </div>
 
 # OpenWrt
@@ -136,7 +136,7 @@ You can modify the related personalized firmware configuration files in the [con
   uses: ophub/amlogic-s9xxx-openwrt@main
   with:
     openwrt_path: openwrt/bin/targets/*/*/*rootfs.tar.gz
-    openwrt_board: s905x3_s905x2_s905x_s905w_s905d_s922x_s912
+    openwrt_board: s905x2
     openwrt_kernel: 6.12.y_6.18.y
     openwrt_ip: 192.168.1.1
 ```
