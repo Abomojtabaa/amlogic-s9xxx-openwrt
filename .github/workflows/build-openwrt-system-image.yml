@@ -1,146 +1,58 @@
 name: Build OpenWrt system image
 
 on:
-  repository_dispatch:
   workflow_dispatch:
-    inputs:
-      source_branch:
-        description: "Select the source branch"
-        required: false
-        default: "immortalwrt_master"
-        type: choice
-        options:
-          - immortalwrt_master
-          - openwrt_main
-      openwrt_board:
-        description: "Select device board"
-        required: false
-        default: "s905x2"
-        type: choice
-        options:
-          - s905x2
-          - s905x2-gt1-mini
-          - amlogic
-      openwrt_kernel:
-        description: "Select kernel version"
-        required: false
-        default: "6.6.y"
-        type: choice
-        options:
-          - 6.12.y
-          - 6.6.y
-          - 5.15.y
-      auto_kernel:
-        description: "Auto use the latest kernel"
-        required: false
-        default: true
-        type: boolean
-      openwrt_ip:
-        description: "Set OpenWrt default IP address."
-        required: false
-        default: "192.168.1.1"
-      use_ccache:
-        description: "Auto use ccache."
-        required: false
-        default: true
-        type: boolean
 
 env:
-  FEEDS_CONF: config/${{ inputs.source_branch }}/feeds.conf.default
-  CONFIG_FILE: config/${{ inputs.source_branch }}/config
-  DIY_P1_SH: config/${{ inputs.source_branch }}/diy-part1.sh
-  DIY_P2_SH: config/${{ inputs.source_branch }}/diy-part2.sh
+  CONFIG_FILE: config/immortalwrt_master/config
+  DIY_P2_SH: config/immortalwrt_master/diy-part2.sh
   TZ: Etc/UTC
-  CCACHE_DIR: /builder/openwrt/.ccache
 
 jobs:
   build:
     runs-on: ubuntu-24.04
-    if: ${{ github.event.repository.owner.id == github.event.sender.id }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
-      - name: Initialize the build environment
-        id: init
+      - name: Initialize Environment
         run: |
           sudo -E apt-get -y update
           sudo -E apt-get -y install $(curl -fsSL https://ophub.org/ubuntu2404-make-openwrt-depends)
-          sudo -E timedatectl set-timezone "${TZ:-Etc/UTC}"
           sudo mkdir -p /builder
           sudo chown -R runner:runner /builder
-          echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Clone source code [ ${{ inputs.source_branch }} ]
-        id: codes
+      - name: Clone Source
         working-directory: /builder
         run: |
-          if [[ "${{ inputs.source_branch }}" =~ ^immortalwrt ]]; then
-              REPO_URL="https://github.com/immortalwrt/immortalwrt"
-          else
-              REPO_URL="https://github.com/openwrt/openwrt"
-          fi
-          source_branch_input="${{ inputs.source_branch }}"
-          REPO_BRANCH="${source_branch_input##*_}"
-          git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
-          echo "REPO_NAME=openwrt" >> ${GITHUB_ENV}
-          echo "status=success" >> ${GITHUB_OUTPUT}
+          git clone -q --single-branch --depth=1 --branch=master https://github.com/immortalwrt/immortalwrt openwrt
 
-      - name: Update & Install feeds
+      - name: Update Feeds
         run: |
           cd /builder/openwrt
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Load custom configuration
+      - name: Load Config
         run: |
-          [ -e "${{ github.workspace }}/${CONFIG_FILE}" ] && cp -f ${{ github.workspace }}/${CONFIG_FILE} /builder/openwrt/.config
+          cp -f ${{ github.workspace }}/${CONFIG_FILE} /builder/openwrt/.config
           chmod +x ${{ github.workspace }}/${DIY_P2_SH}
           cd /builder/openwrt
-          ${{ github.workspace }}/${DIY_P2_SH} "${{ inputs.openwrt_ip }}" "${{ inputs.use_ccache }}"
+          ${{ github.workspace }}/${DIY_P2_SH} "192.168.1.1" "true"
 
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: /builder/openwrt/.ccache
-          key: openwrt-${{ env.REPO_NAME }}-${{ github.sha }}
-          restore-keys: openwrt-${{ env.REPO_NAME }}-
-
-      - name: Compile the OpenWrt firmware
+      - name: Compile
         id: compile
         run: |
           cd /builder/openwrt
           make defconfig
-          echo -e "Compiling with $(nproc) threads"
-          make -j$(($(nproc) + 1)) || make -j1 V=s
+          make -j$(nproc) || make -j1 V=s
           echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Package OpenWrt for Beelink GT1 Mini
+      - name: Package for Beelink (Kernel 5.15)
         if: ${{ steps.compile.outputs.status == 'success' }}
         uses: ophub/amlogic-s9xxx-openwrt@main
         with:
-          # تصحيح المسار ليكون نسبياً داخل مجلد البناء
           openwrt_path: /builder/openwrt/bin/targets/*/*/*rootfs.tar.gz
-          openwrt_board: ${{ inputs.openwrt_board }}
-          openwrt_kernel: ${{ inputs.openwrt_kernel }}
-          auto_kernel: ${{ inputs.auto_kernel }}
-        env:
-          # تم نقل fdt_file إلى هنا لحل مشكلة Unexpected input
-          FDT_FILE: "meson-g12a-gt1-mini-a.dtb"
-
-      - name: Upload packaged OpenWrt to Release
-        uses: ncipollo/release-action@main
-        if: ${{ env.PACKAGED_STATUS == 'success' }}
-        with:
-          tag: "ALIWRT-Stable-v2"
-          artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          body: |
-            ### النسخة المستقرة لجهاز Beelink GT1 Mini (S905X2)
-            * تم إصلاح مشكلة مسار الـ rootfs.
-            * تم حل مشكلة الـ Terminal Unknown.
-            * تفعيل ملف الـ DTB المخصص للمنفذ الأزرق.
+          openwrt_board: s905x2
+          openwrt_kernel: 5.15.y
+          auto_kernel: false
