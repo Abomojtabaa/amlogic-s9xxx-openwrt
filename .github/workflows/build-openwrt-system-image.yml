@@ -1,11 +1,33 @@
-name: Build OpenWrt system image
+name: Build OpenWrt system image (Stable 5.15)
 
 on:
   workflow_dispatch:
+    inputs:
+      source_branch:
+        description: "Select the source branch"
+        required: false
+        default: "immortalwrt_master"
+        type: choice
+        options:
+          - immortalwrt_master
+      openwrt_kernel:
+        description: "Select kernel version"
+        required: false
+        default: "5.15.y"
+        type: choice
+        options:
+          - 5.15.y
+          - 6.1.y
+          - 6.6.y
+      openwrt_ip:
+        description: "Set OpenWrt default IP address."
+        required: false
+        default: "192.168.1.1"
 
 env:
-  CONFIG_FILE: config/immortalwrt_master/config
-  DIY_P2_SH: config/immortalwrt_master/diy-part2.sh
+  # مسارات الإعدادات بناءً على اختيارك للفرع
+  CONFIG_FILE: config/${{ inputs.source_branch }}/config
+  DIY_P2_SH: config/${{ inputs.source_branch }}/diy-part2.sh
   TZ: Etc/UTC
 
 jobs:
@@ -25,6 +47,7 @@ jobs:
       - name: Clone Source
         working-directory: /builder
         run: |
+          # سيقوم بجلب الماستر دائماً لضمان الاستقرار
           git clone -q --single-branch --depth=1 --branch=master https://github.com/immortalwrt/immortalwrt openwrt
 
       - name: Update Feeds
@@ -33,12 +56,13 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Load Config
+      - name: Load Config & DIY
         run: |
-          cp -f ${{ github.workspace }}/${CONFIG_FILE} /builder/openwrt/.config
+          [ -e "${{ github.workspace }}/${CONFIG_FILE}" ] && cp -f ${{ github.workspace }}/${CONFIG_FILE} /builder/openwrt/.config
           chmod +x ${{ github.workspace }}/${DIY_P2_SH}
           cd /builder/openwrt
-          ${{ github.workspace }}/${DIY_P2_SH} "192.168.1.1" "true"
+          # نمرر الأي بي المختار من الواجهة للسكريبت
+          ${{ github.workspace }}/${DIY_P2_SH} "${{ inputs.openwrt_ip }}"
 
       - name: Compile
         id: compile
@@ -48,11 +72,12 @@ jobs:
           make -j$(nproc) || make -j1 V=s
           echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Package for Beelink (Kernel 5.15)
+      - name: Package for Beelink GT1 Mini
         if: ${{ steps.compile.outputs.status == 'success' }}
         uses: ophub/amlogic-s9xxx-openwrt@main
         with:
           openwrt_path: /builder/openwrt/bin/targets/*/*/*rootfs.tar.gz
           openwrt_board: s905x2
-          openwrt_kernel: 5.15.y
+          # نستخدم النواة المختارة من القائمة (يفضل 5.15 حالياً)
+          openwrt_kernel: ${{ inputs.openwrt_kernel }}
           auto_kernel: false
